@@ -22,9 +22,10 @@ int main() {
     for (auto& e : entries) {
         auto resp = client.wideband(e.center_freq_hz, e.bandwidth_hz,
                                     e.sample_rate_sps, 2500);
-        if (!resp) { std::cerr << "  rejected at " << e.center_freq_hz/1e6 << " MHz\n"; continue; }
+        if (!resp.accepted) { std::cerr << "  rejected at " << e.center_freq_hz/1e6 << " MHz\n"; continue; }
 
-        sdr::IqStream stream(resp.udp_port());
+        int port = resp.streams.empty() ? 0 : resp.streams[0].udp_port;
+        sdr::IqStream stream(port);
         auto iq = stream.collect_complex_for(2.0);
         client.stop(resp.task_id);
 

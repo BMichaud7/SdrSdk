@@ -1,4 +1,5 @@
 #include "sdrsdk/SdrClient.hpp"
+#include <sdr/MessageCodec.hpp>
 #include <nlohmann/json.hpp>
 #include <proton/messaging_handler.hpp>
 #include <proton/container.hpp>
@@ -28,7 +29,6 @@
 using json = nlohmann::json;
 using namespace std::chrono;
 
-// ── UUID helper ───────────────────────────────────────────────────────────────
 static std::string make_uuid() {
     static std::mt19937_64 rng(std::random_device{}());
     std::uniform_int_distribution<uint64_t> d;
@@ -48,50 +48,30 @@ static int64_t now_ms() {
         system_clock::now().time_since_epoch()).count();
 }
 
-// ── JSON encoding helpers ─────────────────────────────────────────────────────
-static json encode_request(const sdr::TaskRequest& req, const std::string& rid,
-                            const std::string& dest_ip) {
-    auto mode_str = [](sdr::ScheduleMode m) -> std::string {
-        switch (m) {
-            case sdr::ScheduleMode::IMMEDIATE:  return "IMMEDIATE";
-            case sdr::ScheduleMode::SCHEDULED:  return "SCHEDULED";
-            case sdr::ScheduleMode::CONTINUOUS: return "CONTINUOUS";
-        }
-        return "IMMEDIATE";
-    };
-    auto type_str = [](sdr::TaskType t) -> std::string {
-        switch (t) {
-            case sdr::TaskType::NARROWBAND:  return "NARROWBAND";
-            case sdr::TaskType::WIDEBAND:    return "WIDEBAND";
-            case sdr::TaskType::TRIGGERED:   return "TRIGGERED";
-            case sdr::TaskType::SCAN:        return "SCAN";
-            case sdr::TaskType::SNAPSHOT:    return "SNAPSHOT";
-            case sdr::TaskType::CALIBRATION: return "CALIBRATION";
-            case sdr::TaskType::DF:          return "DF";
-            default:                          return "NARROWBAND";
-        }
-    };
-
+// ── JSON encoding for TaskRequest (client → controller) ──────────────────────
+// MessageCodec::decode() handles the reverse (controller parsing incoming).
+static json encode_request(const sdr::TaskRequest& req, const std::string& dest_ip) {
+    // msg_type varies by task type
     std::string msg_type = "TASK_REQUEST";
     if (req.task_type == sdr::TaskType::SNAPSHOT)   msg_type = "TASK_REQUEST_SNAPSHOT";
     if (req.task_type == sdr::TaskType::SCAN)        msg_type = "TASK_REQUEST_SCAN";
     if (req.task_type == sdr::TaskType::CALIBRATION) msg_type = "TASK_REQUEST_CALIBRATION";
 
     json sched;
-    sched["mode"] = mode_str(req.schedule.mode);
-    if (req.schedule.mode == sdr::ScheduleMode::IMMEDIATE)
-        sched["duration_ms"] = req.schedule.duration_ms;
-    else if (req.schedule.mode == sdr::ScheduleMode::SCHEDULED) {
-        sched["start_time_epoch_ms"] = req.schedule.start_epoch_ms;
-        sched["end_time_epoch_ms"]   = req.schedule.end_epoch_ms;
+    sched["mode"] = sdr::scheduleModeToString(req.schedule_mode);
+    if (req.schedule_mode == sdr::ScheduleMode::IMMEDIATE)
+        sched["duration_ms"] = req.duration_ms;
+    else if (req.schedule_mode == sdr::ScheduleMode::SCHEDULED) {
+        sched["start_time_epoch_ms"] = req.start_time_ms;
+        sched["end_time_epoch_ms"]   = req.end_time_ms;
     }
 
     json j = {
         {"msg_type",       msg_type},
-        {"schema_version", "2.0"},
-        {"request_id",     rid},
+        {"schema_version", sdr::SCHEMA_VERSION},
+        {"request_id",     req.request_id},
         {"timestamp_ms",   now_ms()},
-        {"task_type",      type_str(req.task_type)},
+        {"task_type",      sdr::taskTypeToString(req.task_type)},
         {"rank",           req.rank},
         {"schedule",       sched},
         {"rf", {
@@ -100,34 +80,39 @@ static json encode_request(const sdr::TaskRequest& req, const std::string& rid,
             {"sample_rate_sps", req.rf.sample_rate_sps},
             {"rx_count",        req.rf.rx_count},
         }},
-        {"streaming", {{"dest_ip", dest_ip}}},
+        {"streaming", {{"dest_ip", req.streaming.dest_ip.empty() ? dest_ip : req.streaming.dest_ip}}},
     };
 
-    if (req.task_type == sdr::TaskType::WIDEBAND)
+    if (req.task_type == sdr::TaskType::WIDEBAND && req.wb_params)
+        j["wideband"] = {{"record_raw_iq", req.wb_params->record_raw_iq},
+                         {"fft_size", req.wb_params->fft_size}};
+    else if (req.task_type == sdr::TaskType::WIDEBAND)
         j["wideband"] = {{"record_raw_iq", true}, {"fft_size", 2048}};
 
-    if (req.task_type == sdr::TaskType::SNAPSHOT)
+    if (req.snapshot_params) {
         j["snapshot"] = {
             {"center_freq_hz",  req.rf.center_freq_hz},
             {"bandwidth_hz",    req.rf.bandwidth_hz},
             {"sample_rate_sps", req.rf.sample_rate_sps},
-            {"fft_size",        req.fft_size},
-            {"n_averages",      req.n_averages},
-        };
-
-    if (req.trigger) {
-        j["trigger"] = {
-            {"trigger_type",     req.trigger->trigger_type},
-            {"threshold_dbfs",   req.trigger->threshold_dbfs},
-            {"pre_trigger_ms",   req.trigger->pre_trigger_ms},
-            {"post_trigger_ms",  req.trigger->post_trigger_ms},
-            {"max_captures",     req.trigger->max_captures},
+            {"fft_size",        req.snapshot_params->fft_size},
+            {"n_averages",      req.snapshot_params->n_averages},
         };
     }
 
-    if (req.scan) {
+    if (req.trigger_params) {
+        auto& t = *req.trigger_params;
+        j["trigger"] = {
+            {"trigger_type",    t.trigger_type},
+            {"threshold_dbfs",  t.threshold_dbfs},
+            {"pre_trigger_ms",  t.pre_trigger_ms},
+            {"post_trigger_ms", t.post_trigger_ms},
+            {"max_captures",    t.max_captures},
+        };
+    }
+
+    if (req.scan_params) {
         json entries = json::array();
-        for (const auto& e : req.scan->entries)
+        for (auto& e : req.scan_params->entries)
             entries.push_back({
                 {"step",            e.step},
                 {"center_freq_hz",  e.center_freq_hz},
@@ -135,22 +120,44 @@ static json encode_request(const sdr::TaskRequest& req, const std::string& rid,
                 {"sample_rate_sps", e.sample_rate_sps},
                 {"dwell_ms",        e.dwell_ms},
             });
-        j["scan_params"] = {{"repeat", req.scan->repeat}, {"entries", entries}};
+        j["scan_params"] = {{"repeat", req.scan_params->repeat}, {"entries", entries}};
+    }
+
+    if (req.cal_params) {
+        auto& c = *req.cal_params;
+        j["calibration"] = {
+            {"center_freq_hz",      req.rf.center_freq_hz},
+            {"bandwidth_hz",        req.rf.bandwidth_hz},
+            {"sample_rate_sps",     req.rf.sample_rate_sps},
+            {"duration_ms",         req.duration_ms},
+            {"rx_count_per_device", req.rf.rx_count},
+            {"coherency_group",     c.coherency_group},
+        };
     }
 
     return j;
 }
 
+// ── Decode controller response → TaskResponse ─────────────────────────────────
 static sdr::TaskResponse decode_response(const json& j) {
     sdr::TaskResponse resp;
-    resp.task_id      = j.value("task_id", "");
-    resp.status       = j.value("status", "");
-    resp.accepted     = (resp.status == "ACCEPTED") || j.value("accepted", false);
-    resp.reject_reason= j.value("reject_reason", "");
+    resp.request_id    = j.value("request_id", "");
+    resp.task_id       = j.value("task_id", "");
+    resp.accepted      = (j.value("status", "") == "ACCEPTED") || j.value("accepted", false);
+    resp.reject_reason = j.value("reject_reason", "");
+    auto rc = j.value("reject_code", std::string{});
+    // Map common reject codes
+    if      (rc == "FREQ_OUT_OF_RANGE")  resp.reject_code = sdr::RejectCode::FREQ_OUT_OF_RANGE;
+    else if (rc == "TASK_LIMIT_REACHED") resp.reject_code = sdr::RejectCode::TASK_LIMIT_REACHED;
+    else if (rc == "PORT_POOL_EXHAUSTED")resp.reject_code = sdr::RejectCode::PORT_POOL_EXHAUSTED;
 
-    for (const auto& s : j.value("streams", json::array()))
-        resp.streams.push_back({s.value("udp_port", 0), s.value("stream_id", "")});
-
+    for (const auto& s : j.value("streams", json::array())) {
+        sdr::AssignedStream as;
+        as.udp_port    = s.value("udp_port", 0);
+        as.stream_id   = s.value("stream_id", "");
+        as.udp_ip      = s.value("dest_ip", "");
+        resp.streams.push_back(std::move(as));
+    }
     return resp;
 }
 
@@ -163,7 +170,6 @@ struct SdrClient::Impl : proton::messaging_handler {
 
     proton::container  container_{*this};
     std::thread        loop_thread_;
-
     proton::connection conn_;
     proton::sender     sender_;
     proton::receiver   receiver_;
@@ -184,17 +190,14 @@ struct SdrClient::Impl : proton::messaging_handler {
     std::mutex                                               waiters_mu_;
     std::unordered_map<std::string, std::shared_ptr<Waiter>> waiters_;
 
-    // ── proton callbacks ─────────────────────────────────────────────────────
     void on_container_start(proton::container& c) override {
         proton::connection_options co;
         co.user(cfg.user).password(cfg.password)
           .sasl_enabled(true).sasl_allow_insecure_mechs(true);
         conn_ = c.connect(cfg.broker, co);
-
         sender_ = conn_.open_sender(cfg.req_queue,
             proton::sender_options().target(
                 proton::target_options().capabilities({proton::symbol("queue")})));
-
         receiver_ = conn_.open_receiver(cfg.resp_queue,
             proton::receiver_options().source(
                 proton::source_options().capabilities({proton::symbol("queue")})));
@@ -217,12 +220,13 @@ struct SdrClient::Impl : proton::messaging_handler {
             conn_cv_.notify_all();
     }
 
+    void on_connection_open(proton::connection&) override { flush(); }
+
     void on_message(proton::delivery&, proton::message& msg) override {
         try {
             std::string body;
             auto v = msg.body();
-            if (v.type() == proton::STRING)
-                body = proton::get<std::string>(v);
+            if      (v.type() == proton::STRING) body = proton::get<std::string>(v);
             else if (v.type() == proton::BINARY) {
                 auto b = proton::get<proton::binary>(v);
                 body.assign(b.begin(), b.end());
@@ -244,13 +248,9 @@ struct SdrClient::Impl : proton::messaging_handler {
     void on_connection_error(proton::connection&) override { connected_ = false; }
     void on_transport_error (proton::transport&)  override { connected_ = false; }
 
-    // ── Thread-safe send ─────────────────────────────────────────────────────
     void enqueue(const json& j) {
         std::string body = j.dump();
-        {
-            std::lock_guard<std::mutex> g(out_mu_);
-            out_q_.push_back(std::move(body));
-        }
+        { std::lock_guard<std::mutex> g(out_mu_); out_q_.push_back(std::move(body)); }
         if (connected_.load())
             conn_.work_queue().schedule(proton::duration(0), [this]{ flush(); });
     }
@@ -258,20 +258,14 @@ struct SdrClient::Impl : proton::messaging_handler {
     json rpc(const json& req, int timeout_ms) {
         std::string rid = req.value("request_id", make_uuid());
         auto waiter = std::make_shared<Waiter>();
-        {
-            std::lock_guard<std::mutex> g(waiters_mu_);
-            waiters_[rid] = waiter;
-        }
+        { std::lock_guard<std::mutex> g(waiters_mu_); waiters_[rid] = waiter; }
         enqueue(req);
         auto deadline = steady_clock::now() + milliseconds(timeout_ms);
         {
             std::unique_lock<std::mutex> lk(waiter->mu);
             waiter->cv.wait_until(lk, deadline, [&]{ return waiter->done; });
         }
-        {
-            std::lock_guard<std::mutex> g(waiters_mu_);
-            waiters_.erase(rid);
-        }
+        { std::lock_guard<std::mutex> g(waiters_mu_); waiters_.erase(rid); }
         if (!waiter->done) return {};
         return json::parse(waiter->body);
     }
@@ -282,14 +276,11 @@ struct SdrClient::Impl : proton::messaging_handler {
 SdrClient::SdrClient(const std::string& broker, const std::string& user,
                      const std::string& password, const std::string& dest_ip)
     : SdrClient(Config{broker, user, password,
-                       "sdr.task.request", "sdr.task.response",
-                       dest_ip, 20000}) {}
+                       "sdr.task.request", "sdr.task.response", dest_ip, 20000}) {}
 
 SdrClient::SdrClient(Config cfg)
     : impl_(std::make_unique<Impl>()), cfg_(std::move(cfg))
-{
-    impl_->cfg = cfg_;
-}
+{ impl_->cfg = cfg_; }
 
 SdrClient::~SdrClient() { disconnect(); }
 
@@ -311,72 +302,94 @@ void SdrClient::disconnect() {
 bool SdrClient::isConnected() const { return impl_->connected_.load(); }
 
 TaskResponse SdrClient::submit(const TaskRequest& req) {
-    std::string rid = make_uuid();
-    json j = encode_request(req, rid, cfg_.dest_ip);
+    json j = encode_request(req, cfg_.dest_ip);
     json resp = impl_->rpc(j, cfg_.timeout_ms);
     if (resp.is_null())
         throw SdrError("No response from controller (timeout or disconnect)");
     return decode_response(resp);
 }
 
-// ── Convenience overloads ─────────────────────────────────────────────────────
+// ── Convenience methods ───────────────────────────────────────────────────────
 
 TaskResponse SdrClient::narrowband(double cf, double bw, double sr, int dur_ms) {
     TaskRequest req;
-    req.task_type    = TaskType::NARROWBAND;
-    req.rf           = {cf, bw, sr};
-    req.schedule     = {ScheduleMode::IMMEDIATE, dur_ms};
+    req.request_id    = make_uuid();
+    req.task_type     = TaskType::NARROWBAND;
+    req.schedule_mode = ScheduleMode::IMMEDIATE;
+    req.duration_ms   = dur_ms;
+    req.rank          = 2;
+    req.rf            = {cf, bw, sr, 1};
+    req.streaming     = {cfg_.dest_ip};
     return submit(req);
 }
 
 TaskResponse SdrClient::wideband(double cf, double bw, double sr, int dur_ms) {
     TaskRequest req;
-    req.task_type = TaskType::WIDEBAND;
-    req.rf        = {cf, bw, sr};
-    req.schedule  = {ScheduleMode::IMMEDIATE, dur_ms};
+    req.request_id    = make_uuid();
+    req.task_type     = TaskType::WIDEBAND;
+    req.schedule_mode = ScheduleMode::IMMEDIATE;
+    req.duration_ms   = dur_ms;
+    req.rank          = 2;
+    req.rf            = {cf, bw, sr, 1};
+    req.streaming     = {cfg_.dest_ip};
+    req.wb_params = WidebandParams{true, -60.0, 2048};
     return submit(req);
 }
 
 TaskResponse SdrClient::triggered(double cf, double bw, double sr,
-                                   double thr, int post_ms, int max_cap,
-                                   int dur_ms) {
+                                   double thr, int post_ms, int max_cap, int dur_ms) {
     TaskRequest req;
-    req.task_type = TaskType::TRIGGERED;
-    req.rf        = {cf, bw, sr};
-    req.schedule  = {ScheduleMode::IMMEDIATE, dur_ms};
-    req.trigger   = TriggerParams{"POWER_THRESHOLD", thr, 50, post_ms, max_cap};
+    req.request_id    = make_uuid();
+    req.task_type     = TaskType::TRIGGERED;
+    req.schedule_mode = ScheduleMode::IMMEDIATE;
+    req.duration_ms   = dur_ms;
+    req.rank          = 2;
+    req.rf            = {cf, bw, sr, 1};
+    req.streaming     = {cfg_.dest_ip};
+    req.trigger_params = TriggerParams{"POWER_THRESHOLD", thr, 50, post_ms, max_cap};
     return submit(req);
 }
 
 TaskResponse SdrClient::scan(const std::vector<ScanEntry>& entries,
                               bool repeat, int dur_ms) {
     TaskRequest req;
-    req.task_type   = TaskType::SCAN;
-    req.rf          = {entries.empty() ? 0.0 : entries[0].center_freq_hz,
-                       entries.empty() ? 10e6 : entries[0].bandwidth_hz,
-                       entries.empty() ? 10e6 : entries[0].sample_rate_sps};
-    req.schedule    = {ScheduleMode::IMMEDIATE, dur_ms};
-    req.scan        = ScanParams{repeat, entries};
+    req.request_id    = make_uuid();
+    req.task_type     = TaskType::SCAN;
+    req.schedule_mode = ScheduleMode::IMMEDIATE;
+    req.duration_ms   = dur_ms;
+    req.rank          = 2;
+    if (!entries.empty())
+        req.rf = {entries[0].center_freq_hz, entries[0].bandwidth_hz,
+                  entries[0].sample_rate_sps, 1};
+    req.streaming  = {cfg_.dest_ip};
+    req.scan_params = ScanParams{repeat, entries};
     return submit(req);
 }
 
 TaskResponse SdrClient::snapshot(double cf, double bw, double sr,
                                   int fft_size, int n_avg) {
     TaskRequest req;
-    req.task_type = TaskType::SNAPSHOT;
-    req.rf        = {cf, bw, sr};
-    req.fft_size  = fft_size;
-    req.n_averages= n_avg;
+    req.request_id      = make_uuid();
+    req.task_type       = TaskType::SNAPSHOT;
+    req.schedule_mode   = ScheduleMode::IMMEDIATE;
+    req.rank            = 2;
+    req.rf              = {cf, bw, sr, 1};
+    req.snapshot_params = SnapshotParams{cf, bw, sr, fft_size, n_avg};
     return submit(req);
 }
 
 TaskResponse SdrClient::calibration(double cf, double bw, double sr,
                                      int dur_ms,
-                                     const std::vector<std::string>& /*devices*/) {
+                                     const std::vector<std::string>& devices) {
     TaskRequest req;
-    req.task_type = TaskType::CALIBRATION;
-    req.rf        = {cf, bw, sr};
-    req.schedule  = {ScheduleMode::IMMEDIATE, dur_ms};
+    req.request_id    = make_uuid();
+    req.task_type     = TaskType::CALIBRATION;
+    req.schedule_mode = ScheduleMode::IMMEDIATE;
+    req.duration_ms   = dur_ms;
+    req.rank          = 2;
+    req.rf            = {cf, bw, sr, 1};
+    req.streaming     = {cfg_.dest_ip};
+    req.cal_params    = CalibrationParams{cf, bw, sr, dur_ms, 1, "", devices};
     return submit(req);
 }
 

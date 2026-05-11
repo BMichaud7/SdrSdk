@@ -11,14 +11,15 @@ int main() {
 
     // Tune to 476.5 MHz, 2 MHz BW, collect for 3 seconds
     auto resp = client.narrowband(476.5e6, 2e6, 2e6, 3000);
-    if (!resp) {
+    if (!resp.accepted) {
         std::cerr << "Rejected: " << resp.reject_reason << "\n";
         return 1;
     }
-    std::cout << "Task " << resp.task_id << " accepted on port " << resp.udp_port() << "\n";
+    int port = resp.streams.empty() ? 0 : resp.streams[0].udp_port;
+    std::cout << "Task " << resp.task_id << " accepted on port " << port << "\n";
 
     // Receive IQ
-    sdr::IqStream stream(resp.udp_port());
+    sdr::IqStream stream(port);
     auto samples = stream.collect_complex(200'000);
     client.stop(resp.task_id);
 

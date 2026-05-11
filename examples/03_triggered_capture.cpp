@@ -18,13 +18,14 @@ int main(int argc, char* argv[]) {
         /*max_captures=*/    1,
         /*duration_ms=*/     30000
     );
-    if (!resp) {
+    if (!resp.accepted) {
         std::cerr << "Rejected: " << resp.reject_reason << "\n";
         return 1;
     }
-    std::cout << "Task accepted, listening on port " << resp.udp_port() << "...\n";
+    int port = resp.streams.empty() ? 0 : resp.streams[0].udp_port;
+    std::cout << "Task accepted, listening on port " << port << "...\n";
 
-    sdr::IqStream stream(resp.udp_port(), 35.0);
+    sdr::IqStream stream(port, 35.0);
     auto iq = stream.collect_complex_for(31.0);
     client.stop(resp.task_id);
 

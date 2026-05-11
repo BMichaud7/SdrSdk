@@ -11,6 +11,7 @@
 //      for (auto& s : signals)
 //          std::cout << s.freq_mhz << " MHz  " << s.type << "\n";
 // ═══════════════════════════════════════════════════════════════════════════
+#include "Types.hpp"    // DetectedSignal lives here (also re-exports sdr/Types.hpp)
 #include <vector>
 #include <complex>
 #include <string>
@@ -18,15 +19,6 @@
 #include <fftw3.h>
 
 namespace sdr {
-
-struct DetectedSignal {
-    double      freq_mhz;
-    double      bw_khz;
-    double      power_dbc;   // dB above noise floor
-    std::string type;        // heuristic classification string
-
-    std::string str() const;
-};
 
 class Spectrum {
 public:

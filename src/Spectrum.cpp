@@ -1,4 +1,5 @@
 #include "sdrsdk/Spectrum.hpp"
+#include "sdrsdk/Types.hpp"
 #include <cmath>
 #include <algorithm>
 #include <numeric>

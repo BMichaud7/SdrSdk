@@ -51,16 +51,16 @@ void IqStream::stream(PacketCb cb, double timeout_s) {
 
         IqPacketHeader hdr;
         std::memcpy(&hdr, buf, sizeof(hdr));
-        if (hdr.magic != IQ_MAGIC) continue;
+        if (hdr.magic != IQ_PACKET_MAGIC) continue;
 
-        int payload_bytes = hdr.n_samples * 8;
+        int payload_bytes = hdr.num_samples * 8;
         if (n < (ssize_t)(sizeof(hdr) + payload_bytes)) continue;
 
         auto* iq = reinterpret_cast<float*>(buf + sizeof(hdr));
         pkts_rx_++;
-        samp_rx_ += hdr.n_samples;
+        samp_rx_ += hdr.num_samples;
 
-        if (!cb(hdr, iq, hdr.n_samples)) break;
+        if (!cb(hdr, iq, hdr.num_samples)) break;
     }
 }
 

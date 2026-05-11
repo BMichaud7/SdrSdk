@@ -1,27 +1,30 @@
 #include <gtest/gtest.h>
-#include <sdrsdk/Types.hpp>
+#include <sdr/Types.hpp>   // canonical types from SdrTaskApi
 
-TEST(TaskResponse, UdpPortConvenience) {
+TEST(TaskResponse, UdpPortViaStreams) {
     sdr::TaskResponse resp;
-    EXPECT_EQ(resp.udp_port(), 0);
-    resp.streams.push_back({30001, "stream-1"});
-    EXPECT_EQ(resp.udp_port(), 30001);
+    EXPECT_TRUE(resp.streams.empty());
+    sdr::AssignedStream s;
+    s.udp_port = 30001;
+    resp.streams.push_back(s);
+    EXPECT_EQ(resp.streams[0].udp_port, 30001);
 }
 
-TEST(TaskResponse, BoolConversion) {
+TEST(TaskResponse, AcceptedDefault) {
     sdr::TaskResponse resp;
-    resp.accepted = false;
-    EXPECT_FALSE(resp);
-    resp.accepted = true;
-    EXPECT_TRUE(resp);
+    EXPECT_FALSE(resp.accepted);
 }
 
-TEST(Schedule, DefaultIsImmediate) {
-    sdr::Schedule s;
-    EXPECT_EQ(s.mode, sdr::ScheduleMode::IMMEDIATE);
-    EXPECT_EQ(s.duration_ms, 5000);
+TEST(TaskRequest, DefaultTaskType) {
+    sdr::TaskRequest req;
+    EXPECT_EQ(req.task_type, sdr::TaskType::UNKNOWN);
+    EXPECT_EQ(req.schedule_mode, sdr::ScheduleMode::SCHEDULED);
 }
 
 TEST(IqPacketHeader, Size) {
     EXPECT_EQ(sizeof(sdr::IqPacketHeader), 32u);
+}
+
+TEST(IqMagic, Value) {
+    EXPECT_EQ(sdr::IQ_PACKET_MAGIC, 0x49515030u);
 }

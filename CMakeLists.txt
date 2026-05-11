@@ -5,21 +5,27 @@ set(CMAKE_CXX_STANDARD 20)
 option(SDRSDK_BUILD_EXAMPLES "Build example programs" ON)
 option(SDRSDK_BUILD_TESTS    "Build unit tests"       ON)
 
+# ── SdrTaskApi — shared types and MessageCodec ────────────────────────────────
+# Look for it as a sibling first (developer layout), else fetch from GitHub.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../SdrTaskApi/CMakeLists.txt")
+    message(STATUS "SdrSdk: using sibling SdrTaskApi")
+    add_subdirectory(../SdrTaskApi ${CMAKE_BINARY_DIR}/SdrTaskApi)
+else()
+    include(FetchContent)
+    FetchContent_Declare(SdrTaskApi
+        GIT_REPOSITORY https://github.com/BMichaud7/SdrTaskApi.git
+        GIT_TAG        main/1.0
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(SdrTaskApi)
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3F REQUIRED fftw3f)
 
-# Proton (pkg-config name differs between distros)
 find_path(PROTON_INCLUDE_DIRS proton/connection.hpp REQUIRED)
 find_library(PROTON_CPP_LIB   NAMES qpid-proton-cpp REQUIRED)
 find_library(PROTON_C_LIB     NAMES qpid-proton     REQUIRED)
 set(PROTON_LIBRARIES ${PROTON_CPP_LIB} ${PROTON_C_LIB})
-
-include(FetchContent)
-FetchContent_Declare(json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG        v3.11.3
-    GIT_SHALLOW    TRUE)
-FetchContent_MakeAvailable(json)
 
 # ── Library ───────────────────────────────────────────────────────────────────
 add_library(sdrsdk
@@ -29,21 +35,25 @@ add_library(sdrsdk
 )
 add_library(SdrSdk::sdrsdk ALIAS sdrsdk)
 
+# Propagate SdrTaskApi include path without adding sdr_task_api to the export
+# set (it is an PRIVATE implementation dep; consumers only need the headers).
+get_target_property(_taskapi_inc sdr_task_api INTERFACE_INCLUDE_DIRECTORIES)
+
 target_include_directories(sdrsdk
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${_taskapi_inc}>   # exposes <sdr/Types.hpp>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${PROTON_INCLUDE_DIRS}
         ${FFTW3F_INCLUDE_DIRS}
-        # nlohmann/json is header-only; use the path, not the cmake target,
-        # so it doesn't appear in the install export set.
-        ${json_SOURCE_DIR}/include
 )
 target_link_libraries(sdrsdk
-    PUBLIC  ${FFTW3F_LIBRARIES}
-    PRIVATE ${PROTON_LIBRARIES}
+    PUBLIC  ${FFTW3F_LIBRARIES} ${PROTON_LIBRARIES}
+    PRIVATE sdr_task_api
 )
+# Install SdrTaskApi headers as part of SdrSdk so consumers get <sdr/Types.hpp>
+install(DIRECTORY ${_taskapi_inc}/sdr DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # ── Examples ──────────────────────────────────────────────────────────────────
 if(SDRSDK_BUILD_EXAMPLES)
@@ -65,26 +75,26 @@ install(TARGETS sdrsdk EXPORT SdrSdkTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+# sdr_task_api is a PRIVATE build dep; its headers are installed separately
+# so the export set doesn't need to reference it as a cmake target.
+set_target_properties(sdrsdk PROPERTIES
+    INTERFACE_LINK_LIBRARIES "${FFTW3F_LIBRARIES};${PROTON_LIBRARIES}"
+)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT SdrSdkTargets
     FILE      SdrSdkTargets.cmake
     NAMESPACE SdrSdk::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk
 )
-
-# Package config so consumers can: find_package(SdrSdk REQUIRED)
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfigVersion.cmake"
-    COMPATIBILITY SameMajorVersion
-)
+    COMPATIBILITY SameMajorVersion)
 configure_package_config_file(
     cmake/SdrSdkConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk
-)
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk)
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk
-)
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk)

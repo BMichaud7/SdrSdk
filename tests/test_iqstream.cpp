@@ -13,9 +13,9 @@ static void send_packet(int port, int n_samples) {
     int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 
     sdr::IqPacketHeader hdr{};
-    hdr.magic     = sdr::IQ_MAGIC;
-    hdr.n_samples = (uint16_t)n_samples;
-    hdr.format    = 0;
+    hdr.magic       = sdr::IQ_PACKET_MAGIC;
+    hdr.num_samples = (uint16_t)n_samples;
+    hdr.flags       = 0;
 
     std::vector<float> iq(n_samples * 2, 0.5f);
 
