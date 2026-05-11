@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(SdrSdk VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
+include(GNUInstallDirs)
 
 option(SDRSDK_BUILD_EXAMPLES "Build example programs" ON)
 option(SDRSDK_BUILD_TESTS    "Build unit tests"       ON)
@@ -70,7 +71,6 @@ if(SDRSDK_BUILD_TESTS)
 endif()
 
 # ── Install ───────────────────────────────────────────────────────────────────
-include(GNUInstallDirs)
 install(TARGETS sdrsdk EXPORT SdrSdkTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
