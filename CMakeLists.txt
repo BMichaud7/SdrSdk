@@ -10,6 +10,7 @@ option(SDRSDK_BUILD_TESTS    "Build unit tests"       ON)
 # Look for it as a sibling first (developer layout), else fetch from GitHub.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../SdrTaskApi/CMakeLists.txt")
     message(STATUS "SdrSdk: using sibling SdrTaskApi")
+    set(_taskapi_src "${CMAKE_CURRENT_SOURCE_DIR}/../SdrTaskApi")
     add_subdirectory(../SdrTaskApi ${CMAKE_BINARY_DIR}/SdrTaskApi)
 else()
     include(FetchContent)
@@ -18,6 +19,7 @@ else()
         GIT_TAG        main/1.0
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(SdrTaskApi)
+    set(_taskapi_src "${sdrtaskapi_SOURCE_DIR}")
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -36,14 +38,10 @@ add_library(sdrsdk
 )
 add_library(SdrSdk::sdrsdk ALIAS sdrsdk)
 
-# Propagate SdrTaskApi include path without adding sdr_task_api to the export
-# set (it is an PRIVATE implementation dep; consumers only need the headers).
-get_target_property(_taskapi_inc sdr_task_api INTERFACE_INCLUDE_DIRECTORIES)
-
 target_include_directories(sdrsdk
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${_taskapi_inc}>   # exposes <sdr/Types.hpp>
+        $<BUILD_INTERFACE:${_taskapi_src}/include>   # exposes <sdr/Types.hpp>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${PROTON_INCLUDE_DIRS}
@@ -54,7 +52,7 @@ target_link_libraries(sdrsdk
     PRIVATE sdr_task_api
 )
 # Install SdrTaskApi headers as part of SdrSdk so consumers get <sdr/Types.hpp>
-install(DIRECTORY ${_taskapi_inc}/sdr DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY "${_taskapi_src}/include/sdr" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # ── Examples ──────────────────────────────────────────────────────────────────
 if(SDRSDK_BUILD_EXAMPLES)
