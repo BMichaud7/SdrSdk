@@ -4,6 +4,7 @@
 //  IqPacketHeader and IQ_PACKET_MAGIC come from SdrTaskApi.
 // ═══════════════════════════════════════════════════════════════════════════
 #include <sdr/Types.hpp>
+#include "sdrsdk/units.hpp"
 #include <vector>
 #include <complex>
 #include <functional>
@@ -12,20 +13,22 @@ namespace sdr {
 
 class IqStream {
 public:
-    explicit IqStream(int port, double timeout_s = 10.0);
+    explicit IqStream(int port,
+                      au::QuantityD<au::Seconds> timeout = sdrunit::s(10.0));
     ~IqStream();
 
     IqStream(const IqStream&)            = delete;
     IqStream& operator=(const IqStream&) = delete;
 
     std::vector<float>                collect(int n_samples);
-    std::vector<float>                collect_for(double seconds);
+    std::vector<float>                collect_for(au::QuantityD<au::Seconds> duration);
     std::vector<std::complex<float>>  collect_complex(int n_samples);
-    std::vector<std::complex<float>>  collect_complex_for(double seconds);
+    std::vector<std::complex<float>>  collect_complex_for(au::QuantityD<au::Seconds> duration);
 
     using PacketCb = std::function<bool(const IqPacketHeader&,
                                         const float* iq, int n_samples)>;
-    void stream(PacketCb cb, double timeout_s = 30.0);
+    void stream(PacketCb cb,
+                au::QuantityD<au::Seconds> timeout = sdrunit::s(30.0));
 
     int  port()       const { return port_; }
     long packets_rx() const { return pkts_rx_; }

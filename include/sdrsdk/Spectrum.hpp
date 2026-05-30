@@ -6,12 +6,13 @@
 //  Usage:
 //      auto samples = stream.collect_complex(500'000);
 //      sdr::Spectrum spec(8192);
-//      auto [freqs, psd_db] = spec.welch(samples, cf_hz, sr_hz);
+//      auto [freqs, psd_db] = spec.welch(samples, sdrunit::MHz(98.5), sdrunit::MHz(2.4));
 //      auto signals = spec.find_signals(freqs, psd_db, /*threshold_db=*/10.0);
 //      for (auto& s : signals)
 //          std::cout << s.freq_mhz << " MHz  " << s.type << "\n";
 // ═══════════════════════════════════════════════════════════════════════════
 #include "Types.hpp"    // DetectedSignal lives here (also re-exports sdr/Types.hpp)
+#include "sdrsdk/units.hpp"
 #include <vector>
 #include <complex>
 #include <string>
@@ -32,12 +33,12 @@ public:
     // Returns {freq_hz_axis, power_db_axis}, both of length frame_size.
     std::tuple<std::vector<double>, std::vector<double>>
     welch(const std::vector<std::complex<float>>& samples,
-          double cf_hz, double sr_hz) const;
+          au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const;
 
     // Overload for interleaved float array.
     std::tuple<std::vector<double>, std::vector<double>>
     welch(const std::vector<float>& iq,
-          double cf_hz, double sr_hz) const;
+          au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const;
 
     // Find signals above noise_floor + threshold_db.
     // Merges peaks within 50 kHz (FM pilot / RDS tones) and classifies.
@@ -49,7 +50,7 @@ public:
     // One-shot: welch + find_signals
     std::vector<DetectedSignal>
     analyse(const std::vector<std::complex<float>>& samples,
-            double cf_hz, double sr_hz,
+            au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr,
             double threshold_db = 10.0) const;
 
     int frame_size() const { return frame_; }

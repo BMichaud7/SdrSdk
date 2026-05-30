@@ -8,7 +8,8 @@
 //      sdr::SdrClient client("amqp://localhost:5672");
 //      client.connect();
 //
-//      auto resp = client.narrowband(476.5e6, 2e6, 2e6, 3000);
+//      using namespace sdrunit;
+//      auto resp = client.narrowband(MHz(476.5), MHz(2.0), MHz(2.0), s(3.0));
 //      if (resp.accepted) {
 //          sdr::IqStream stream(resp.streams[0].udp_port);
 //          auto samples = stream.collect_complex(100'000);
@@ -16,6 +17,7 @@
 //      }
 // ═══════════════════════════════════════════════════════════════════════════
 #include <sdr/Types.hpp>
+#include "sdrsdk/units.hpp"
 #include <stdexcept>
 #include <memory>
 #include <string>
@@ -58,28 +60,38 @@ public:
 
     // ── Convenience methods (build the TaskRequest for you) ──────────────────
 
-    TaskResponse narrowband(double cf_hz, double bw_hz, double sr_sps,
-                            int duration_ms = 5000);
+    TaskResponse narrowband(au::QuantityD<au::Hertz> cf,
+                            au::QuantityD<au::Hertz> bw,
+                            au::QuantityD<au::Hertz> sr,
+                            au::QuantityD<au::Seconds> duration = sdrunit::s(5.0));
 
-    TaskResponse wideband(double cf_hz, double bw_hz, double sr_sps,
-                          int duration_ms = 5000);
+    TaskResponse wideband(au::QuantityD<au::Hertz> cf,
+                          au::QuantityD<au::Hertz> bw,
+                          au::QuantityD<au::Hertz> sr,
+                          au::QuantityD<au::Seconds> duration = sdrunit::s(5.0));
 
-    TaskResponse triggered(double cf_hz, double bw_hz, double sr_sps,
-                           double threshold_dbfs  = -60.0,
-                           int    post_trigger_ms = 200,
-                           int    max_captures    = 1,
-                           int    duration_ms     = 10000);
+    TaskResponse triggered(au::QuantityD<au::Hertz>   cf,
+                           au::QuantityD<au::Hertz>   bw,
+                           au::QuantityD<au::Hertz>   sr,
+                           double                     threshold_dbfs  = -60.0,
+                           au::QuantityD<au::Seconds> post_trigger    = sdrunit::s(0.2),
+                           int                        max_captures    = 1,
+                           au::QuantityD<au::Seconds> duration        = sdrunit::s(10.0));
 
     TaskResponse scan(const std::vector<ScanEntry>& entries,
-                      bool repeat       = false,
-                      int  duration_ms  = 30000);
+                      bool                       repeat   = false,
+                      au::QuantityD<au::Seconds> duration = sdrunit::s(30.0));
 
-    TaskResponse snapshot(double cf_hz, double bw_hz, double sr_sps,
+    TaskResponse snapshot(au::QuantityD<au::Hertz> cf,
+                          au::QuantityD<au::Hertz> bw,
+                          au::QuantityD<au::Hertz> sr,
                           int fft_size = 1024, int n_averages = 4);
 
-    TaskResponse calibration(double cf_hz, double bw_hz, double sr_sps,
-                             int    duration_ms = 2000,
-                             const  std::vector<std::string>& devices = {});
+    TaskResponse calibration(au::QuantityD<au::Hertz>   cf,
+                             au::QuantityD<au::Hertz>   bw,
+                             au::QuantityD<au::Hertz>   sr,
+                             au::QuantityD<au::Seconds> duration = sdrunit::s(2.0),
+                             const std::vector<std::string>& devices = {});
 
     void stop  (const std::string& task_id, const std::string& reason = "");
     void cancel(const std::string& task_id, const std::string& reason = "");

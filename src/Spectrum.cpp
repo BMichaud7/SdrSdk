@@ -35,18 +35,20 @@ Spectrum::~Spectrum() {
 
 std::tuple<std::vector<double>, std::vector<double>>
 Spectrum::welch(const std::vector<std::complex<float>>& samples,
-                double cf_hz, double sr_hz) const
+                au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const
 {
     std::vector<float> iq;
     iq.reserve(samples.size() * 2);
     for (auto& s : samples) { iq.push_back(s.real()); iq.push_back(s.imag()); }
-    return welch(iq, cf_hz, sr_hz);
+    return welch(iq, cf, sr);
 }
 
 std::tuple<std::vector<double>, std::vector<double>>
 Spectrum::welch(const std::vector<float>& iq,
-                double cf_hz, double sr_hz) const
+                au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const
 {
+    double cf_hz = cf.in(au::hertz);
+    double sr_hz = sr.in(au::hertz);
     int n_samp = (int)iq.size() / 2;
     int step   = frame_ / 2;
     int frames = (n_samp - frame_) / step;
@@ -131,9 +133,10 @@ Spectrum::find_signals(const std::vector<double>& freq_hz,
 
 std::vector<DetectedSignal>
 Spectrum::analyse(const std::vector<std::complex<float>>& samples,
-                   double cf_hz, double sr_hz, double threshold_db) const
+                   au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr,
+                   double threshold_db) const
 {
-    auto [freqs, psd] = welch(samples, cf_hz, sr_hz);
+    auto [freqs, psd] = welch(samples, cf, sr);
     return find_signals(freqs, psd, threshold_db);
 }
 

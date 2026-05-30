@@ -10,8 +10,8 @@ using namespace std::chrono;
 
 namespace sdr {
 
-IqStream::IqStream(int port, double timeout_s)
-    : port_(port), timeout_s_(timeout_s)
+IqStream::IqStream(int port, au::QuantityD<au::Seconds> timeout)
+    : port_(port), timeout_s_(timeout.in(au::seconds))
 {
     open_socket();
 }
@@ -41,9 +41,9 @@ void IqStream::close_socket() {
     if (fd_ >= 0) { ::close(fd_); fd_ = -1; }
 }
 
-void IqStream::stream(PacketCb cb, double timeout_s) {
+void IqStream::stream(PacketCb cb, au::QuantityD<au::Seconds> timeout) {
     uint8_t buf[65536];
-    auto deadline = steady_clock::now() + duration<double>(timeout_s);
+    auto deadline = steady_clock::now() + duration<double>(timeout.in(au::seconds));
 
     while (steady_clock::now() < deadline) {
         ssize_t n = ::recv(fd_, buf, sizeof(buf), 0);
@@ -71,16 +71,16 @@ std::vector<float> IqStream::collect(int n_samples) {
         for (int i = 0; i < n * 2 && (int)out.size() < n_samples * 2; ++i)
             out.push_back(iq[i]);
         return (int)out.size() < n_samples * 2;
-    }, timeout_s_);
+    }, sdrunit::s(timeout_s_));
     return out;
 }
 
-std::vector<float> IqStream::collect_for(double seconds) {
+std::vector<float> IqStream::collect_for(au::QuantityD<au::Seconds> duration) {
     std::vector<float> out;
     stream([&](const IqPacketHeader&, const float* iq, int n) -> bool {
         for (int i = 0; i < n * 2; ++i) out.push_back(iq[i]);
         return true;
-    }, seconds);
+    }, duration);
     return out;
 }
 
@@ -93,8 +93,8 @@ std::vector<std::complex<float>> IqStream::collect_complex(int n_samples) {
     return out;
 }
 
-std::vector<std::complex<float>> IqStream::collect_complex_for(double seconds) {
-    auto raw = collect_for(seconds);
+std::vector<std::complex<float>> IqStream::collect_complex_for(au::QuantityD<au::Seconds> duration) {
+    auto raw = collect_for(duration);
     std::vector<std::complex<float>> out;
     out.reserve(raw.size() / 2);
     for (size_t i = 0; i + 1 < raw.size(); i += 2)

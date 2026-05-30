@@ -311,47 +311,72 @@ TaskResponse SdrClient::submit(const TaskRequest& req) {
 
 // ── Convenience methods ───────────────────────────────────────────────────────
 
-TaskResponse SdrClient::narrowband(double cf, double bw, double sr, int dur_ms) {
+TaskResponse SdrClient::narrowband(au::QuantityD<au::Hertz> cf,
+                                    au::QuantityD<au::Hertz> bw,
+                                    au::QuantityD<au::Hertz> sr,
+                                    au::QuantityD<au::Seconds> duration) {
+    double cf_hz  = cf.in(au::hertz);
+    double bw_hz  = bw.in(au::hertz);
+    double sr_hz  = sr.in(au::hertz);
+    int    dur_ms = static_cast<int>(duration.in(au::milli(au::seconds)) + 0.5);
     TaskRequest req;
     req.request_id    = make_uuid();
     req.task_type     = TaskType::NARROWBAND;
     req.schedule_mode = ScheduleMode::IMMEDIATE;
     req.duration_ms   = dur_ms;
     req.rank          = 2;
-    req.rf            = {cf, bw, sr, 1};
+    req.rf            = {cf_hz, bw_hz, sr_hz, 1};
     req.streaming     = {cfg_.dest_ip};
     return submit(req);
 }
 
-TaskResponse SdrClient::wideband(double cf, double bw, double sr, int dur_ms) {
+TaskResponse SdrClient::wideband(au::QuantityD<au::Hertz> cf,
+                                  au::QuantityD<au::Hertz> bw,
+                                  au::QuantityD<au::Hertz> sr,
+                                  au::QuantityD<au::Seconds> duration) {
+    double cf_hz  = cf.in(au::hertz);
+    double bw_hz  = bw.in(au::hertz);
+    double sr_hz  = sr.in(au::hertz);
+    int    dur_ms = static_cast<int>(duration.in(au::milli(au::seconds)) + 0.5);
     TaskRequest req;
     req.request_id    = make_uuid();
     req.task_type     = TaskType::WIDEBAND;
     req.schedule_mode = ScheduleMode::IMMEDIATE;
     req.duration_ms   = dur_ms;
     req.rank          = 2;
-    req.rf            = {cf, bw, sr, 1};
+    req.rf            = {cf_hz, bw_hz, sr_hz, 1};
     req.streaming     = {cfg_.dest_ip};
     req.wb_params = WidebandParams{true, -60.0, 2048};
     return submit(req);
 }
 
-TaskResponse SdrClient::triggered(double cf, double bw, double sr,
-                                   double thr, int post_ms, int max_cap, int dur_ms) {
+TaskResponse SdrClient::triggered(au::QuantityD<au::Hertz>   cf,
+                                   au::QuantityD<au::Hertz>   bw,
+                                   au::QuantityD<au::Hertz>   sr,
+                                   double                     thr,
+                                   au::QuantityD<au::Seconds> post_trigger,
+                                   int                        max_cap,
+                                   au::QuantityD<au::Seconds> duration) {
+    double cf_hz    = cf.in(au::hertz);
+    double bw_hz    = bw.in(au::hertz);
+    double sr_hz    = sr.in(au::hertz);
+    int    post_ms  = static_cast<int>(post_trigger.in(au::milli(au::seconds)) + 0.5);
+    int    dur_ms   = static_cast<int>(duration.in(au::milli(au::seconds)) + 0.5);
     TaskRequest req;
     req.request_id    = make_uuid();
     req.task_type     = TaskType::TRIGGERED;
     req.schedule_mode = ScheduleMode::IMMEDIATE;
     req.duration_ms   = dur_ms;
     req.rank          = 2;
-    req.rf            = {cf, bw, sr, 1};
+    req.rf            = {cf_hz, bw_hz, sr_hz, 1};
     req.streaming     = {cfg_.dest_ip};
     req.trigger_params = TriggerParams{"POWER_THRESHOLD", thr, 50, post_ms, max_cap};
     return submit(req);
 }
 
 TaskResponse SdrClient::scan(const std::vector<ScanEntry>& entries,
-                              bool repeat, int dur_ms) {
+                              bool repeat, au::QuantityD<au::Seconds> duration) {
+    int dur_ms = static_cast<int>(duration.in(au::milli(au::seconds)) + 0.5);
     TaskRequest req;
     req.request_id    = make_uuid();
     req.task_type     = TaskType::SCAN;
@@ -366,30 +391,41 @@ TaskResponse SdrClient::scan(const std::vector<ScanEntry>& entries,
     return submit(req);
 }
 
-TaskResponse SdrClient::snapshot(double cf, double bw, double sr,
+TaskResponse SdrClient::snapshot(au::QuantityD<au::Hertz> cf,
+                                  au::QuantityD<au::Hertz> bw,
+                                  au::QuantityD<au::Hertz> sr,
                                   int fft_size, int n_avg) {
+    double cf_hz = cf.in(au::hertz);
+    double bw_hz = bw.in(au::hertz);
+    double sr_hz = sr.in(au::hertz);
     TaskRequest req;
     req.request_id      = make_uuid();
     req.task_type       = TaskType::SNAPSHOT;
     req.schedule_mode   = ScheduleMode::IMMEDIATE;
     req.rank            = 2;
-    req.rf              = {cf, bw, sr, 1};
-    req.snapshot_params = SnapshotParams{cf, bw, sr, fft_size, n_avg};
+    req.rf              = {cf_hz, bw_hz, sr_hz, 1};
+    req.snapshot_params = SnapshotParams{cf_hz, bw_hz, sr_hz, fft_size, n_avg};
     return submit(req);
 }
 
-TaskResponse SdrClient::calibration(double cf, double bw, double sr,
-                                     int dur_ms,
+TaskResponse SdrClient::calibration(au::QuantityD<au::Hertz>   cf,
+                                     au::QuantityD<au::Hertz>   bw,
+                                     au::QuantityD<au::Hertz>   sr,
+                                     au::QuantityD<au::Seconds> duration,
                                      const std::vector<std::string>& devices) {
+    double cf_hz  = cf.in(au::hertz);
+    double bw_hz  = bw.in(au::hertz);
+    double sr_hz  = sr.in(au::hertz);
+    int    dur_ms = static_cast<int>(duration.in(au::milli(au::seconds)) + 0.5);
     TaskRequest req;
     req.request_id    = make_uuid();
     req.task_type     = TaskType::CALIBRATION;
     req.schedule_mode = ScheduleMode::IMMEDIATE;
     req.duration_ms   = dur_ms;
     req.rank          = 2;
-    req.rf            = {cf, bw, sr, 1};
+    req.rf            = {cf_hz, bw_hz, sr_hz, 1};
     req.streaming     = {cfg_.dest_ip};
-    req.cal_params    = CalibrationParams{cf, bw, sr, dur_ms, 1, "", devices};
+    req.cal_params    = CalibrationParams{cf_hz, bw_hz, sr_hz, dur_ms, 1, "", devices};
     return submit(req);
 }
 

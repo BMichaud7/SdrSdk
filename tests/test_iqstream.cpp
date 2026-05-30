@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <sdrsdk/IqStream.hpp>
+#include <sdrsdk/units.hpp>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -34,7 +35,7 @@ static void send_packet(int port, int n_samples) {
 
 TEST(IqStream, ReceivesPacket) {
     int port = 34567;
-    sdr::IqStream stream(port, 2.0);
+    sdr::IqStream stream(port, sdrunit::s(2.0));
 
     std::thread sender([port]{
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -50,7 +51,7 @@ TEST(IqStream, ReceivesPacket) {
 
 TEST(IqStream, IgnoresBadMagic) {
     int port = 34568;
-    sdr::IqStream stream(port, 1.0);
+    sdr::IqStream stream(port, sdrunit::s(1.0));
 
     std::thread sender([port]{
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -64,7 +65,7 @@ TEST(IqStream, IgnoresBadMagic) {
         ::close(fd);
     });
 
-    auto samples = stream.collect_for(0.6);
+    auto samples = stream.collect_for(sdrunit::s(0.6));
     sender.join();
 
     EXPECT_EQ(stream.packets_rx(), 0);
