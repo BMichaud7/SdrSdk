@@ -276,7 +276,7 @@ struct SdrClient::Impl : proton::messaging_handler {
 SdrClient::SdrClient(const std::string& broker, const std::string& user,
                      const std::string& password, const std::string& dest_ip)
     : SdrClient(Config{broker, user, password,
-                       "sdr.task.request", "sdr.task.response", dest_ip, 20000}) {}
+                       "sdr.task.request", "sdr.task.response", dest_ip, sdrunit::s(20.0)}) {}
 
 SdrClient::SdrClient(Config cfg)
     : impl_(std::make_unique<Impl>()), cfg_(std::move(cfg))
@@ -287,7 +287,7 @@ SdrClient::~SdrClient() { disconnect(); }
 void SdrClient::connect() {
     impl_->loop_thread_ = std::thread([this]{ impl_->container_.run(); });
     std::unique_lock<std::mutex> lk(impl_->conn_mu_);
-    if (!impl_->conn_cv_.wait_for(lk, milliseconds(cfg_.timeout_ms),
+    if (!impl_->conn_cv_.wait_for(lk, milliseconds(static_cast<int>(cfg_.timeout.in(au::milli(au::seconds)))),
                                    [this]{ return impl_->connected_.load(); }))
         throw SdrError("Cannot connect to broker at " + cfg_.broker);
 }
@@ -303,7 +303,7 @@ bool SdrClient::isConnected() const { return impl_->connected_.load(); }
 
 TaskResponse SdrClient::submit(const TaskRequest& req) {
     json j = encode_request(req, cfg_.dest_ip);
-    json resp = impl_->rpc(j, cfg_.timeout_ms);
+    json resp = impl_->rpc(j, static_cast<int>(cfg_.timeout.in(au::milli(au::seconds))));
     if (resp.is_null())
         throw SdrError("No response from controller (timeout or disconnect)");
     return decode_response(resp);

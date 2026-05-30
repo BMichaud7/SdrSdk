@@ -38,7 +38,7 @@ public:
         std::string req_queue   = "sdr.task.request";
         std::string resp_queue  = "sdr.task.response";
         std::string dest_ip     = "127.0.0.1";
-        int         timeout_ms  = 20000;
+        au::QuantityD<au::Seconds> timeout = sdrunit::s(20.0);
     };
 
     explicit SdrClient(const std::string& broker   = "amqp://localhost:5672",

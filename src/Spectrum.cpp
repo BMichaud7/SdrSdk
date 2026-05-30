@@ -10,8 +10,8 @@ namespace sdr {
 
 std::string DetectedSignal::str() const {
     std::ostringstream s;
-    s << std::fixed << std::setprecision(3) << freq_mhz << " MHz"
-      << "  BW=" << std::setprecision(1) << bw_khz << " kHz"
+    s << std::fixed << std::setprecision(3) << freq.in(au::mega(au::hertz)) << " MHz"
+      << "  BW=" << std::setprecision(1) << bw.in(au::kilo(au::hertz)) << " kHz"
       << "  +" << power_dbc << " dBc"
       << "  " << type;
     return s.str();
@@ -33,7 +33,7 @@ Spectrum::~Spectrum() {
     fftwf_free(in_); fftwf_free(out_);
 }
 
-std::tuple<std::vector<double>, std::vector<double>>
+std::tuple<std::vector<au::QuantityD<au::Hertz>>, std::vector<double>>
 Spectrum::welch(const std::vector<std::complex<float>>& samples,
                 au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const
 {
@@ -43,7 +43,7 @@ Spectrum::welch(const std::vector<std::complex<float>>& samples,
     return welch(iq, cf, sr);
 }
 
-std::tuple<std::vector<double>, std::vector<double>>
+std::tuple<std::vector<au::QuantityD<au::Hertz>>, std::vector<double>>
 Spectrum::welch(const std::vector<float>& iq,
                 au::QuantityD<au::Hertz> cf, au::QuantityD<au::Hertz> sr) const
 {
@@ -69,16 +69,17 @@ Spectrum::welch(const std::vector<float>& iq,
     }
 
     double bin_hz = sr_hz / frame_;
-    std::vector<double> freqs(frame_), psd(frame_);
+    std::vector<au::QuantityD<au::Hertz>> freqs(frame_);
+    std::vector<double> psd(frame_);
     for (int i = 0; i < frame_; ++i) {
-        freqs[i] = cf_hz + (i - frame_/2) * bin_hz;
+        freqs[i] = au::hertz(cf_hz + (i - frame_/2) * bin_hz);
         psd[i]   = 10.0 * std::log10(acc[(i + frame_/2) % frame_] + 1e-30);
     }
     return {freqs, psd};
 }
 
 std::vector<DetectedSignal>
-Spectrum::find_signals(const std::vector<double>& freq_hz,
+Spectrum::find_signals(const std::vector<au::QuantityD<au::Hertz>>& freq_hz,
                         const std::vector<double>& psd_db,
                         double threshold_db) const
 {
@@ -100,22 +101,27 @@ Spectrum::find_signals(const std::vector<double>& freq_hz,
     std::vector<DetectedSignal> raw;
     for (auto& r : regs) {
         auto pk = (int)(std::max_element(psd_db.begin()+r.lo, psd_db.begin()+r.hi+1) - psd_db.begin());
-        double f   = freq_hz[pk];
-        double bw  = freq_hz[r.hi] - freq_hz[r.lo];
+        double f   = freq_hz[pk].in(au::hertz);
+        double bw  = freq_hz[r.hi].in(au::hertz) - freq_hz[r.lo].in(au::hertz);
         double pwr = psd_db[pk] - noise;
         if (bw < 1e3 || bw > 19e6) continue;
-        raw.push_back({f/1e6, bw/1e3, pwr, ""});
+        raw.push_back({au::hertz(f), au::hertz(bw), pwr, ""});
     }
 
     // Merge peaks within 50 kHz
     std::vector<DetectedSignal> merged;
     for (auto& s : raw) {
-        if (!merged.empty() && std::abs(s.freq_mhz - merged.back().freq_mhz) < 0.05) {
+        if (!merged.empty() &&
+            std::abs(s.freq.in(au::hertz) - merged.back().freq.in(au::hertz)) < 50e3) {
             auto& m = merged.back();
-            double lo = std::min(m.freq_mhz - m.bw_khz/2e3, s.freq_mhz - s.bw_khz/2e3);
-            double hi = std::max(m.freq_mhz + m.bw_khz/2e3, s.freq_mhz + s.bw_khz/2e3);
-            if (s.power_dbc > m.power_dbc) m.freq_mhz = s.freq_mhz;
-            m.bw_khz    = (hi - lo) * 1e3;
+            double mf = m.freq.in(au::hertz);
+            double sf = s.freq.in(au::hertz);
+            double mbw = m.bw.in(au::hertz);
+            double sbw = s.bw.in(au::hertz);
+            double lo = std::min(mf - mbw/2.0, sf - sbw/2.0);
+            double hi = std::max(mf + mbw/2.0, sf + sbw/2.0);
+            if (s.power_dbc > m.power_dbc) m.freq = s.freq;
+            m.bw        = au::hertz(hi - lo);
             m.power_dbc = std::max(m.power_dbc, s.power_dbc);
         } else {
             merged.push_back(s);
@@ -124,8 +130,8 @@ Spectrum::find_signals(const std::vector<double>& freq_hz,
 
     std::vector<DetectedSignal> out;
     for (auto& s : merged) {
-        if (s.bw_khz < 2.0) continue;
-        s.type = classify(s.freq_mhz * 1e6, s.bw_khz * 1e3);
+        if (s.bw.in(au::hertz) < 2e3) continue;
+        s.type = classify(s.freq, s.bw);
         out.push_back(s);
     }
     return out;
@@ -140,7 +146,10 @@ Spectrum::analyse(const std::vector<std::complex<float>>& samples,
     return find_signals(freqs, psd, threshold_db);
 }
 
-std::string Spectrum::classify(double f, double bw) {
+std::string Spectrum::classify(au::QuantityD<au::Hertz> freq_hz,
+                               au::QuantityD<au::Hertz> bw_hz) {
+    double f  = freq_hz.in(au::hertz);
+    double bw = bw_hz.in(au::hertz);
     if (f >= 87.5e6 && f <= 108e6  && bw >  80e3) return "WFM — Broadcast FM";
     if (f >= 87.5e6 && f <= 108e6)                 return "FM  — Low-power / distant";
     if (f >= 108e6  && f <  118e6  && bw <  30e3) return "AM  — VOR / ILS nav";
