@@ -22,6 +22,15 @@ else()
     set(_taskapi_src "${sdrtaskapi_SOURCE_DIR}")
 endif()
 
+# ── Au units library (header-only) ───────────────────────────────────────────
+include(FetchContent)
+FetchContent_Declare(Au
+    GIT_REPOSITORY https://github.com/aurora-opensource/au
+    GIT_TAG        "0.5.1"
+    GIT_SHALLOW    TRUE
+    EXCLUDE_FROM_ALL)
+FetchContent_MakeAvailable(Au)
+
 # ── FFTW3 ─────────────────────────────────────────────────────────────────────
 # On Windows (vcpkg): FFTW3 ships a CMake config package with imported targets.
 # On Linux: use pkg-config with IMPORTED_TARGET so PkgConfig::FFTW3F is a
@@ -65,7 +74,7 @@ target_include_directories(sdrsdk
         $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(sdrsdk
-    PUBLIC  ${FFTW3_TARGET} SdrSdk_Proton
+    PUBLIC  ${FFTW3_TARGET} SdrSdk_Proton Au::au
     PRIVATE sdr_task_api
 )
 # Install SdrTaskApi headers as part of SdrSdk so consumers get <sdr/Types.hpp>
