@@ -22,13 +22,33 @@ else()
     set(_taskapi_src "${sdrtaskapi_SOURCE_DIR}")
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFTW3F REQUIRED fftw3f)
+# ── FFTW3 ─────────────────────────────────────────────────────────────────────
+# On Windows (vcpkg): FFTW3 ships a CMake config package with imported targets.
+# On Linux: use pkg-config with IMPORTED_TARGET so PkgConfig::FFTW3F is a
+# proper target that survives cmake install export.
+if(WIN32)
+    find_package(FFTW3 CONFIG REQUIRED)
+    set(FFTW3_TARGET FFTW3::fftw3f)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FFTW3F REQUIRED IMPORTED_TARGET fftw3f)
+    set(FFTW3_TARGET PkgConfig::FFTW3F)
+endif()
 
+# ── Proton ────────────────────────────────────────────────────────────────────
+# pkg-config for proton is broken on Ubuntu 24.04 multiarch and absent on
+# Windows. Use find_path/find_library and wrap in an IMPORTED target so the
+# install export embeds a proper target rather than absolute paths.
 find_path(PROTON_INCLUDE_DIRS proton/connection.hpp REQUIRED)
-find_library(PROTON_CPP_LIB   NAMES qpid-proton-cpp REQUIRED)
-find_library(PROTON_C_LIB     NAMES qpid-proton     REQUIRED)
-set(PROTON_LIBRARIES ${PROTON_CPP_LIB} ${PROTON_C_LIB})
+find_library(PROTON_CPP_LIB NAMES qpid-proton-cpp REQUIRED)
+find_library(PROTON_C_LIB   NAMES qpid-proton     REQUIRED)
+
+add_library(SdrSdk_Proton UNKNOWN IMPORTED)
+set_target_properties(SdrSdk_Proton PROPERTIES
+    IMPORTED_LOCATION             "${PROTON_CPP_LIB}"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROTON_INCLUDE_DIRS}"
+    INTERFACE_LINK_LIBRARIES      "${PROTON_C_LIB}"
+)
 
 # ── Library ───────────────────────────────────────────────────────────────────
 add_library(sdrsdk
@@ -41,14 +61,11 @@ add_library(SdrSdk::sdrsdk ALIAS sdrsdk)
 target_include_directories(sdrsdk
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${_taskapi_src}/include>   # exposes <sdr/Types.hpp>
+        $<BUILD_INTERFACE:${_taskapi_src}/include>
         $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${PROTON_INCLUDE_DIRS}
-        ${FFTW3F_INCLUDE_DIRS}
 )
 target_link_libraries(sdrsdk
-    PUBLIC  ${FFTW3F_LIBRARIES} ${PROTON_LIBRARIES}
+    PUBLIC  ${FFTW3_TARGET} SdrSdk_Proton
     PRIVATE sdr_task_api
 )
 # Install SdrTaskApi headers as part of SdrSdk so consumers get <sdr/Types.hpp>
@@ -72,11 +89,6 @@ endif()
 install(TARGETS sdrsdk EXPORT SdrSdkTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-# sdr_task_api is a PRIVATE build dep; its headers are installed separately
-# so the export set doesn't need to reference it as a cmake target.
-set_target_properties(sdrsdk PROPERTIES
-    INTERFACE_LINK_LIBRARIES "${FFTW3F_LIBRARIES};${PROTON_LIBRARIES}"
 )
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT SdrSdkTargets
