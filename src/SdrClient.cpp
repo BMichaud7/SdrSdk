@@ -450,3 +450,4 @@ void SdrClient::cancel(const std::string& task_id, const std::string& reason) {
 }
 
 
+} // namespace sdr
