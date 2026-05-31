@@ -98,7 +98,7 @@ endif()
 # When used as add_subdirectory() by another app, the sdr_task_api target is
 # local to the build tree and cannot be included in an install export set.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    install(TARGETS sdrsdk EXPORT SdrSdkTargets
+    install(TARGETS sdrsdk sdr_task_api EXPORT SdrSdkTargets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
