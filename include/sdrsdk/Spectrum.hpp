@@ -66,4 +66,4 @@ private:
                                     au::QuantityD<au::Hertz> bw_hz);
 };
 
-} // namespace sdr
+

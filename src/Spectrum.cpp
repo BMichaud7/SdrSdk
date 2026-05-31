@@ -169,4 +169,4 @@ std::string Spectrum::classify(au::QuantityD<au::Hertz> freq_hz,
     return "AM / SSB — Narrowband";
 }
 
-} // namespace sdr
+
