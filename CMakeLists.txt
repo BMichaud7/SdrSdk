@@ -95,29 +95,13 @@ if(SDRSDK_BUILD_TESTS)
 endif()
 
 # ── Install (only when SdrSdk is the top-level project) ──────────────────────
-# When used as add_subdirectory() by another app, the sdr_task_api target is
-# local to the build tree and cannot be included in an install export set.
+# cmake EXPORT targets are omitted: FetchContent deps (nlohmann_json, spdlog)
+# pulled in by SdrTaskApi would also need to be in the export set, which is
+# impractical. SdrSdk is always consumed via add_subdirectory() in practice.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    install(TARGETS sdrsdk sdr_task_api EXPORT SdrSdkTargets
+    install(TARGETS sdrsdk sdr_task_api
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(EXPORT SdrSdkTargets
-        FILE      SdrSdkTargets.cmake
-        NAMESPACE SdrSdk::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk
-    )
-    include(CMakePackageConfigHelpers)
-    write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfigVersion.cmake"
-        COMPATIBILITY SameMajorVersion)
-    configure_package_config_file(
-        cmake/SdrSdkConfig.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk)
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/SdrSdkConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SdrSdk)
 endif()
