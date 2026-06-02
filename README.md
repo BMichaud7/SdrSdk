@@ -53,23 +53,22 @@ cmake --build build --parallel
 ctest --test-dir build          # runs unit tests (no hardware needed)
 ```
 
-**Dependencies** (all available from package managers):
+**Dependencies**:
 - `libqpid-proton-cpp-dev` / `qpid-proton-cpp-devel` — AMQP 1.0
 - `libfftw3-dev` / `fftw-devel` — FFT
 - nlohmann/json — fetched automatically via CMake FetchContent
+- [Au units](https://github.com/aurora-opensource/au) 0.5.1 — zero-overhead physical units; fetched automatically via CMake FetchContent
 
 ## Use in your own project
 
-```cmake
-find_package(SdrSdk REQUIRED)
-target_link_libraries(my_app PRIVATE SdrSdk::sdrsdk)
-```
+SdrSdk is designed to be consumed via `add_subdirectory()`:
 
-Or embed directly:
 ```cmake
 add_subdirectory(SdrSdk)
 target_link_libraries(my_app PRIVATE sdrsdk)
 ```
+
+> **Note:** There is no installed CMake export set — `find_package(SdrSdk)` is not supported. FetchContent dependencies (nlohmann_json, spdlog) cannot be included in an export set, so SdrSdk is always embedded as a subdirectory.
 
 ## Examples
 
