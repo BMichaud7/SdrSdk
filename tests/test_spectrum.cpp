@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <sdrsdk/Spectrum.hpp>
 #include <sdrsdk/units.hpp>
+#include <au/units/hertz.hh>
+#include <au/prefix.hh>
 #include <cmath>
 
 // Generate a pure tone as complex IQ
@@ -31,7 +33,7 @@ TEST(Spectrum, DetectsTone) {
     double expected = (cf + tone_offset) / 1e6;
     bool found = false;
     for (auto& sig : signals)
-        if (std::abs(sig.freq_mhz - expected) < 0.01) found = true;
+        if (std::abs(sig.freq.in(au::mega(au::hertz)) - expected) < 0.01) found = true;
     EXPECT_TRUE(found) << "Expected signal near " << expected << " MHz";
 }
 

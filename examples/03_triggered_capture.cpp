@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     int port = resp.streams.empty() ? 0 : resp.streams[0].udp_port;
     std::cout << "Task accepted, listening on port " << port << "...\n";
 
-    sdr::IqStream stream(port, 35.0);
+    sdr::IqStream stream(port, au::seconds(35.0));
     auto iq = stream.collect_complex_for(au::seconds(31.0));
     client.stop(resp.task_id);
 
