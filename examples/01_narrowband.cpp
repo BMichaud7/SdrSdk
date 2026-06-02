@@ -1,5 +1,7 @@
 // Example 1 — NARROWBAND task: tune, collect IQ, print stats.
 #include <sdrsdk/sdrsdk.hpp>
+#include <au/units/hertz.hh>
+#include <au/units/seconds.hh>
 #include <iostream>
 #include <cmath>
 
@@ -10,7 +12,8 @@ int main() {
     client.connect();
 
     // Tune to 476.5 MHz, 2 MHz BW, collect for 3 seconds
-    auto resp = client.narrowband(476.5e6, 2e6, 2e6, 3000);
+    auto resp = client.narrowband(au::hertz(476.5e6), au::hertz(2e6),
+                                  au::hertz(2e6), au::seconds(3.0));
     if (!resp.accepted) {
         std::cerr << "Rejected: " << resp.reject_reason << "\n";
         return 1;
