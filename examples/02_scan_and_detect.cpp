@@ -2,7 +2,6 @@
 #include <sdrsdk/sdrsdk.hpp>
 #include <au/units/hertz.hh>
 #include <au/units/seconds.hh>
-#include <au/prefix.hh>
 #include <iostream>
 #include <iomanip>
 
@@ -34,7 +33,7 @@ int main() {
 
         int port = resp.streams.empty() ? 0 : resp.streams[0].udp_port;
         sdr::IqStream stream(port);
-        auto iq = stream.collect_complex_for(2.0);
+        auto iq = stream.collect_complex_for(au::seconds(2.0));
         client.stop(resp.task_id);
 
         auto signals = spectrum.analyse(iq, cf, sr);

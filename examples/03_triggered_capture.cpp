@@ -1,5 +1,7 @@
 // Example 3 — TRIGGERED capture: record a burst when signal exceeds threshold.
 #include <sdrsdk/sdrsdk.hpp>
+#include <au/units/hertz.hh>
+#include <au/units/seconds.hh>
 #include <iostream>
 #include <fstream>
 
@@ -12,11 +14,11 @@ int main(int argc, char* argv[]) {
     std::cout << "Waiting for signal at " << cf_hz/1e6 << " MHz (threshold -70 dBFS)...\n";
 
     auto resp = client.triggered(
-        cf_hz, 200e3, 200e3,   // cf, bw, sr
+        au::hertz(cf_hz), au::hertz(200e3), au::hertz(200e3),
         /*threshold_dbfs=*/ -70.0,
-        /*post_trigger_ms=*/ 500,
+        /*post_trigger=*/    au::seconds(0.5),
         /*max_captures=*/    1,
-        /*duration_ms=*/     30000
+        /*duration=*/        au::seconds(30.0)
     );
     if (!resp.accepted) {
         std::cerr << "Rejected: " << resp.reject_reason << "\n";
@@ -26,7 +28,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Task accepted, listening on port " << port << "...\n";
 
     sdr::IqStream stream(port, 35.0);
-    auto iq = stream.collect_complex_for(31.0);
+    auto iq = stream.collect_complex_for(au::seconds(31.0));
     client.stop(resp.task_id);
 
     if (iq.empty()) {
