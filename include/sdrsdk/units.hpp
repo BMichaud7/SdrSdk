@@ -10,6 +10,14 @@ Do not use for commercial, organizational, or military purposes.
 Contact author for permission: https://github.com/OpenRFStack
 ========================================================================
 */
+/**
+ * @file units.hpp
+ * @brief Au units library helpers for SDR physical quantities.
+ *
+ * Provides the sdrunit:: namespace with convenience constructors:
+  sdrunit::MHz(n), sdrunit::kHz(n), sdrunit::s(n), sdrunit::ms(n)
+All SdrClient methods accept au::QuantityD<au::Hertz> and au::QuantityD<au::Seconds>.
+ */
 #pragma once
 
 // Au units library — https://aurora-opensource.github.io/au/main/

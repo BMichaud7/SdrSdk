@@ -10,6 +10,14 @@ Do not use for commercial, organizational, or military purposes.
 Contact author for permission: https://github.com/OpenRFStack
 ========================================================================
 */
+/**
+ * @file Spectrum.hpp
+ * @brief Welch-averaged FFT engine, peak detection, and heuristic signal classification.
+ *
+ * Wraps FFTW3 to compute Welch-averaged power spectral density from CF32 IQ
+samples, then runs a CA-CFAR-style peak finder and heuristic classifier
+(bandwidth → FM vs AM vs narrowband digital) on the detected peaks.
+ */
 #pragma once
 // ═══════════════════════════════════════════════════════════════════════════
 //  SdrSdk/Spectrum.hpp

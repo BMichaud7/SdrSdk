@@ -10,6 +10,13 @@ Do not use for commercial, organizational, or military purposes.
 Contact author for permission: https://github.com/OpenRFStack
 ========================================================================
 */
+/**
+ * @file Types.hpp
+ * @brief SdrSdk public type aliases — re-exports SdrTaskApi types into the sdr:: namespace.
+ *
+ * Include this or <sdr/Types.hpp> directly. Provides TaskRequest, TaskResponse,
+AssignedStream, ScanEntry, SnapshotResult, DetectedSignal and Au unit types.
+ */
 #pragma once
 // SdrSdk uses SdrTaskApi as its canonical type definitions.
 // Include this or <sdr/Types.hpp> directly — they are the same types.

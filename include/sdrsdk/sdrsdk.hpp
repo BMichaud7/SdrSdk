@@ -10,6 +10,13 @@ Do not use for commercial, organizational, or military purposes.
 Contact author for permission: https://github.com/OpenRFStack
 ========================================================================
 */
+/**
+ * @file sdrsdk.hpp
+ * @brief Umbrella header — include this for the complete SdrSdk public API.
+ *
+ * Includes SdrClient, IqStream, Spectrum, Types, and units. The only header
+an application needs to include to use the full SDK.
+ */
 #pragma once
 // Umbrella header — include this for full SDK access.
 #include <sdr/Types.hpp>          // canonical types (from SdrTaskApi)
