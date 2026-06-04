@@ -1,3 +1,15 @@
+/*
+========================================================================
+Project: OpenRFStack
+Author:  Brendan Michaud
+Year:    2026
+Part of OpenRFStack (https://github.com/OpenRFStack)
+
+Licensed under the Personal Use License.
+Do not use for commercial, organizational, or military purposes.
+Contact author for permission: https://github.com/OpenRFStack
+========================================================================
+*/
 // Example 3 — TRIGGERED capture: record a burst when signal exceeds threshold.
 #include <sdrsdk/sdrsdk.hpp>
 #include <au/units/hertz.hh>

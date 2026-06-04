@@ -1,3 +1,15 @@
+/*
+========================================================================
+Project: OpenRFStack
+Author:  Brendan Michaud
+Year:    2026
+Part of OpenRFStack (https://github.com/OpenRFStack)
+
+Licensed under the Personal Use License.
+Do not use for commercial, organizational, or military purposes.
+Contact author for permission: https://github.com/OpenRFStack
+========================================================================
+*/
 #pragma once
 // Umbrella header — include this for full SDK access.
 #include <sdr/Types.hpp>          // canonical types (from SdrTaskApi)
