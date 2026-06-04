@@ -17,3 +17,11 @@ Contact author for permission: https://github.com/OpenRFStack
 #include "SdrClient.hpp"
 #include "IqStream.hpp"
 #include "Spectrum.hpp"
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

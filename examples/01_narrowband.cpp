@@ -48,3 +48,11 @@ int main() {
               << "Packets:    " << stream.packets_rx() << "\n";
     return 0;
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

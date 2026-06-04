@@ -55,3 +55,11 @@ inline constexpr auto h   = au::hours;
 inline constexpr auto day = au::days;
 
 } // namespace sdrunit
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

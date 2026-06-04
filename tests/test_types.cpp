@@ -40,3 +40,11 @@ TEST(IqPacketHeader, Size) {
 TEST(IqMagic, Value) {
     EXPECT_EQ(sdr::IQ_PACKET_MAGIC, 0x49515030u);
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

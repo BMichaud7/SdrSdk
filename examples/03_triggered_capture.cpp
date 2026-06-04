@@ -58,3 +58,11 @@ int main(int argc, char* argv[]) {
     std::cout << "Saved to " << fname << " (" << f.tellp() << " bytes)\n";
     return 0;
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

@@ -115,3 +115,11 @@ std::vector<std::complex<float>> IqStream::collect_complex_for(au::QuantityD<au:
 }
 
 } // namespace sdr
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

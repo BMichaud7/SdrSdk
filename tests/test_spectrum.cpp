@@ -56,3 +56,11 @@ TEST(Spectrum, EmptyInputReturnsNoSignals) {
     auto sigs   = spec.find_signals(f, p, 10.0);
     EXPECT_TRUE(sigs.empty());
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

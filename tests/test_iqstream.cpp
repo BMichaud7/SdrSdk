@@ -83,3 +83,11 @@ TEST(IqStream, IgnoresBadMagic) {
     EXPECT_EQ(stream.packets_rx(), 0);
     EXPECT_TRUE(samples.empty());
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

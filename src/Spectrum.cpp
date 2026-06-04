@@ -183,3 +183,11 @@ std::string Spectrum::classify(au::QuantityD<au::Hertz> freq_hz,
 
 
 } // namespace sdr
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/
