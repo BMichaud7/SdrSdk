@@ -1,6 +1,9 @@
 build/
 .cache/
-*.o *.a *.so
-CMakeCache.txt CMakeFiles/
+*.o
+*.a
+*.so
+CMakeCache.txt
+CMakeFiles/
 cmake_install.cmake
 CTestTestfile.cmake
