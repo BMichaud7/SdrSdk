@@ -17,6 +17,7 @@ Contact author for permission: https://github.com/OpenRFStack
 #include <proton/container.hpp>
 #include <proton/connection.hpp>
 #include <proton/connection_options.hpp>
+#include <proton/reconnect_options.hpp>
 #include <proton/sender.hpp>
 #include <proton/sender_options.hpp>
 #include <proton/receiver.hpp>
@@ -206,6 +207,14 @@ struct SdrClient::Impl : proton::messaging_handler {
         proton::connection_options co;
         co.user(cfg.user).password(cfg.password)
           .sasl_enabled(true).sasl_allow_insecure_mechs(true);
+        // Without this, a connection attempt that loses the race with a
+        // still-starting broker is permanent -- every user app linking this
+        // SDK would silently never connect after one bad boot timing.
+        proton::reconnect_options ropts;
+        ropts.delay(proton::duration(2000));
+        ropts.max_delay(proton::duration(30000));
+        ropts.max_attempts(0);
+        co.reconnect(ropts);
         conn_ = c.connect(cfg.broker, co);
         sender_ = conn_.open_sender(cfg.req_queue,
             proton::sender_options().target(
