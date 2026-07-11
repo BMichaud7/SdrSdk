@@ -315,6 +315,7 @@ void SdrClient::connect() {
 
 void SdrClient::disconnect() {
     if (impl_->loop_thread_.joinable()) {
+        impl_->connected_.store(false);
         impl_->container_.stop();
         impl_->loop_thread_.join();
     }
