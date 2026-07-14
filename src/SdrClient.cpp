@@ -44,8 +44,10 @@ using namespace std::chrono;
 
 static std::string make_uuid() {
     static std::mt19937_64 rng(std::random_device{}());
+    static std::mutex rng_mu;
     std::uniform_int_distribution<uint64_t> d;
-    auto a = d(rng), b = d(rng);
+    uint64_t a, b;
+    { std::lock_guard<std::mutex> lk(rng_mu); a = d(rng); b = d(rng); }
     std::ostringstream s;
     s << std::hex << std::setfill('0')
       << std::setw(8)  << (a >> 32) << '-'
