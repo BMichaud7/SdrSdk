@@ -207,8 +207,17 @@ struct SdrClient::Impl : proton::messaging_handler {
 
     void on_container_start(proton::container& c) override {
         proton::connection_options co;
-        co.user(cfg.user).password(cfg.password)
-          .sasl_enabled(true).sasl_allow_insecure_mechs(true);
+        // Without sasl_allowed_mechs("PLAIN"), proton never negotiates
+        // credentials onto the wire — Artemis rejects (AMQ229031) even though
+        // user/password are set. Same fix applied across all repos.
+        if (!cfg.user.empty()) {
+            co.sasl_allowed_mechs("PLAIN");
+            co.sasl_allow_insecure_mechs(true);
+            co.user(cfg.user);
+        } else {
+            co.sasl_allowed_mechs("ANONYMOUS");
+        }
+        if (!cfg.password.empty()) co.password(cfg.password);
         // Without this, a connection attempt that loses the race with a
         // still-starting broker is permanent -- every user app linking this
         // SDK would silently never connect after one bad boot timing.
